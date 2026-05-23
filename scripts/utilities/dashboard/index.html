@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Storage Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3250; --accent: #6c7dff; --accent2: #ff6b8a;
+    --text: #e8eaf6; --muted: #7b82b5; --green: #4caf82; --red: #ff5252;
+    --amber: #ffb74d;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Header ── */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  header h1 { font-size: 18px; font-weight: 600; color: var(--accent); flex: 1; }
+  .stat-pills { display: flex; gap: 10px; }
+  .pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px; font-size: 12px; white-space: nowrap; }
+  .pill span { color: var(--accent); font-weight: 600; }
+
+  /* ── Layout ── */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  aside { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  aside h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 14px 8px; }
+  .album-list { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+  .album-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; border-left: 3px solid transparent; transition: background .15s; }
+  .album-item:hover { background: var(--surface2); }
+  .album-item.active { background: var(--surface2); border-left-color: var(--accent); }
+  .album-icon { font-size: 16px; }
+  .album-info { flex: 1; min-width: 0; }
+  .album-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .album-count { font-size: 11px; color: var(--muted); }
+  .add-album-btn { margin: 8px 14px; padding: 7px; background: var(--surface2); border: 1px dashed var(--border); border-radius: 6px; color: var(--muted); cursor: pointer; text-align: center; font-size: 12px; transition: color .15s, border-color .15s; }
+  .add-album-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── Main ── */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar { padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .toolbar h2 { font-size: 15px; font-weight: 600; flex: 1; }
+  .toolbar-actions { display: flex; gap: 8px; align-items: center; }
+  .filter-row { display: flex; gap: 8px; }
+  select, input[type=text] { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 13px; }
+  select:focus, input:focus { outline: none; border-color: var(--accent); }
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Grid ── */
+  .grid-area { flex: 1; overflow-y: auto; padding: 16px; }
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .photo-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; transition: border-color .15s; }
+  .photo-card:hover { border-color: var(--accent); }
+  .photo-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .photo-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--surface2); cursor: pointer; }
+  .photo-thumb-placeholder { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 28px; background: var(--surface2); color: var(--muted); }
+  .photo-check { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.4); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .photo-card.selected .photo-check { background: var(--accent); border-color: var(--accent); }
+  .photo-check::after { content:'✓'; color:#fff; font-size:11px; display:none; }
+  .photo-card.selected .photo-check::after { display:block; }
+  .photo-type-badge { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,.6); border-radius: 4px; padding: 1px 5px; font-size: 10px; color: #fff; }
+  .photo-meta { padding: 7px 8px; }
+  .photo-name { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 5px; }
+  .photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+  .action-btn { padding: 3px 8px; font-size: 11px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; transition: opacity .15s; white-space: nowrap; }
+  .action-btn:hover { opacity: .8; }
+  .action-move { background: #2a3570; color: #aab4ff; }
+  .action-personal { background: #1e3a2e; color: #6ddfaa; }
+  .action-remove { background: #3a1e1e; color: #ff8a8a; }
+
+  /* ── Bulk action bar ── */
+  .bulk-bar { display: none; background: var(--accent); color: #fff; padding: 10px 16px; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+  .bulk-bar.visible { display: flex; }
+
+  /* ── Empty / loading states ── */
+  .state-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); gap: 12px; }
+  .state-msg .icon { font-size: 42px; }
+  .loader { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Modal ── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; min-width: 320px; max-width: 420px; width: 90%; }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .modal select, .modal input { width: 100%; margin-bottom: 14px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+  /* ── Toast ── */
+  #toast-area { position: fixed; bottom: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: #fff; max-width: 320px; box-shadow: 0 4px 16px rgba(0,0,0,.4); animation: slideIn .25s ease; }
+  .toast.ok { background: var(--green); }
+  .toast.err { background: var(--red); }
+  .toast.info { background: var(--accent); }
+  @keyframes slideIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <h1>📷 Photo Storage Dashboard</h1>
+  <div class="stat-pills" id="stat-pills">
+    <div class="pill">Photos: <span id="s-photos">…</span></div>
+    <div class="pill">Videos: <span id="s-videos">…</span></div>
+    <div class="pill">Storage: <span id="s-storage">…</span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar: albums as "source folders" -->
+  <aside>
+    <h2>Source Folders</h2>
+    <div class="album-list" id="album-list"></div>
+    <div class="add-album-btn" onclick="openNewAlbumModal()">＋ New folder</div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+    <div class="toolbar">
+      <h2 id="current-album-name">Select a folder →</h2>
+      <div class="toolbar-actions">
+        <div class="filter-row">
+          <select id="sort-select" onchange="applySort()">
+            <option value="desc">Newest first</option>
+            <option value="asc">Oldest first</option>
+          </select>
+          <select id="person-select" onchange="onPersonFilterChange()" title="Filter by named person">
+            <option value="">All people</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleSelectAll()">Select all</button>
+        <button class="btn btn-ghost btn-sm" onclick="refreshGrid()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Bulk action bar (shown when items selected) -->
+    <div class="bulk-bar" id="bulk-bar">
+      <span id="bulk-count">0 selected</span>
+      <button class="btn btn-primary btn-sm" onclick="bulkMove()">Move to…</button>
+      <button class="btn btn-sm" style="background:#1e3a2e;color:#6ddfaa;" onclick="bulkPersonal()">Keep personal</button>
+      <button class="btn btn-danger btn-sm" onclick="bulkTrash()">🗑 Delete</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Cancel</button>
+    </div>
+
+    <!-- Photo grid -->
+    <div class="grid-area">
+      <div id="grid-container">
+        <div class="state-msg"><div class="icon">📁</div><span>Select a folder from the sidebar</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Move modal -->
+<div class="modal-bg" id="move-modal">
+  <div class="modal">
+    <h3>Move to album</h3>
+    <label>Target album</label>
+    <select id="move-target-select"></select>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('move-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmMove()">Move</button>
+    </div>
+  </div>
+</div>
+
+<!-- New album modal -->
+<div class="modal-bg" id="new-album-modal">
+  <div class="modal">
+    <h3>Create new folder / album</h3>
+    <label>Album name</label>
+    <input type="text" id="new-album-name" placeholder="e.g. Personal - Holidays"/>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('new-album-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmNewAlbum()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast area -->
+<div id="toast-area"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+const state = {
+  albums: [],
+  currentAlbumId: null,
+  currentAlbumName: '',
+  currentAlbumShared: false,
+  assets: [],
+  allAlbumAssets: [],
+  selected: new Set(),
+  personalAlbumId: null,
+  personalAlbumName: "Personal Foto's",
+  smartFilterSharedOnly: true,
+  people: [],
+  activePersonId: '',
+  pendingMoveAssets: [],
+};
+
+// ── Helpers ────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function fmt(bytes) {
+  if (bytes >= 1e12) return (bytes/1e12).toFixed(1)+' TB';
+  if (bytes >= 1e9) return (bytes/1e9).toFixed(1)+' GB';
+  if (bytes >= 1e6) return (bytes/1e6).toFixed(1)+' MB';
+  return (bytes/1e3).toFixed(0)+' KB';
+}
+
+function toast(msg, type='info', ms=3500) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('toast-area').appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+async function api(method, path, body=null) {
+  const opts = { method, headers: { 'content-type': 'application/json', 'accept': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('/proxy' + path, opts);
+  if (!res.ok) {
+    const txt = await res.text().catch(()=>'');
+    throw new Error(`API ${method} ${path} → ${res.status}: ${txt.slice(0,200)}`);
+  }
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+
+function thumbUrl(id, size='thumbnail') {
+  return `/proxy/api/assets/${id}/thumbnail?size=${size}`;
+}
+
+// ── Boot ───────────────────────────────────────────────────
+async function boot() {
+  await Promise.all([loadConfig(), loadStats(), loadPeople(), loadAlbums()]);
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/config');
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (cfg && typeof cfg.personal_album_name === 'string' && cfg.personal_album_name.trim()) {
+      state.personalAlbumName = cfg.personal_album_name.trim();
+    }
+    if (cfg && typeof cfg.smart_filter_shared_only === 'boolean') {
+      state.smartFilterSharedOnly = cfg.smart_filter_shared_only;
+    }
+  } catch (_) {
+    // Keep default if config is unavailable.
+  }
+}
+
+async function loadStats() {
+  try {
+    const s = await api('GET', '/api/server/statistics');
+    $('s-photos').textContent = (s.photos||0).toLocaleString();
+    $('s-videos').textContent = (s.videos||0).toLocaleString();
+    $('s-storage').textContent = fmt(s.usage||0);
+  } catch(e) { console.warn('stats', e); }
+}
+
+async function loadAlbums() {
+  const [ownedAlbums, sharedAlbums] = await Promise.all([
+    api('GET', '/api/albums').catch(() => []),
+    api('GET', '/api/albums?shared=true').catch(() => []),
+  ]);
+  const merged = new Map();
+  for (const album of [...(ownedAlbums || []), ...(sharedAlbums || [])]) {
+    if (album?.id) merged.set(album.id, album);
+  }
+  state.albums = [...merged.values()];
+  // find/cache personal album id (exact name first)
+  const personal =
+    state.albums.find(a => (a.albumName || '').toLowerCase() === state.personalAlbumName.toLowerCase()) ||
+    state.albums.find(a => {
+      const name = (a.albumName || '').toLowerCase();
+      return name.includes('personal') || name.includes('private');
+    });
+  state.personalAlbumId = personal ? personal.id : null;
+  renderSidebar();
+  populateMoveSelect();
+}
+
+async function loadPeople() {
+  try {
+    const payload = await api('GET', '/api/people');
+    const people = Array.isArray(payload) ? payload : (payload?.people || []);
+    state.people = people
+      .filter(p => (p?.name || '').trim().length > 0)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    populatePeopleSelect();
+  } catch (e) {
+    console.warn('people', e);
+  }
+}
+
+function populatePeopleSelect() {
+  const select = $('person-select');
+  if (!select) return;
+  const current = state.activePersonId || '';
+  select.innerHTML = '<option value="">All people</option>';
+  for (const p of state.people) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  }
+  select.value = current;
+}
+
+async function onPersonFilterChange() {
+  state.activePersonId = $('person-select')?.value || '';
+  if (state.activePersonId && state.smartFilterSharedOnly && !state.currentAlbumShared) {
+    toast('Person filter works only on shared albums.', 'info');
+    state.activePersonId = '';
+    $('person-select').value = '';
+  }
+  clearSelection();
+  await refreshGrid();
+}
+
+function updatePersonFilterUI() {
+  const select = $('person-select');
+  if (!select) return;
+  const limited = state.smartFilterSharedOnly;
+  const allowed = !limited || state.currentAlbumShared;
+  select.disabled = !allowed;
+  select.title = allowed
+    ? 'Filter by named person'
+    : 'Person filter is enabled only for shared albums';
+  if (!allowed && state.activePersonId) {
+    state.activePersonId = '';
+    select.value = '';
+  }
+}
+
+function renderSidebar() {
+  const list = $('album-list');
+  list.innerHTML = '';
+  const sorted = [...state.albums].sort((a,b) => a.albumName.localeCompare(b.albumName));
+  for (const album of sorted) {
+    const el = document.createElement('div');
+    el.className = 'album-item' + (album.id === state.currentAlbumId ? ' active' : '');
+    el.dataset.id = album.id;
+    el.innerHTML = `
+      <span class="album-icon">${albumIcon(album.albumName)}</span>
+      <div class="album-info">
+        <div class="album-name" title="${esc(album.albumName)}">${esc(album.albumName)}</div>
+        <div class="album-count">${(album.assetCount||0).toLocaleString()} items${album.shared?' · shared':''}</div>
+      </div>`;
+    el.addEventListener('click', () => selectAlbum(album.id, album.albumName, !!album.shared));
+    list.appendChild(el);
+  }
+}
+
+function albumIcon(name) {
+  const n = name.toLowerCase();
+  if (n.includes('inbox') || n.includes('review')) return '📥';
+  if (n.includes('personal') || n.includes('private')) return '🔒';
+  if (n.includes('shared') || n.includes('family')) return '👨‍👩‍👧';
+  if (n.includes('timeline')) return '🕒';
+  return '📁';
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function populateMoveSelect() {
+  const sel = $('move-target-select');
+  sel.innerHTML = '';
+  for (const a of state.albums) {
+    if (a.id === state.currentAlbumId) continue;
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = a.albumName;
+    sel.appendChild(opt);
+  }
+}
+
+// ── Album selection & grid ─────────────────────────────────
+async function selectAlbum(id, name, isShared=false) {
+  state.currentAlbumId = id;
+  state.currentAlbumName = name;
+  state.currentAlbumShared = !!isShared;
+  state.selected.clear();
+  updateBulkBar();
+  updatePersonFilterUI();
+  $('current-album-name').textContent = name;
+  document.querySelectorAll('.album-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  populateMoveSelect();
+  await refreshGrid();
+}
+
+async function refreshGrid() {
+  if (!state.currentAlbumId) return;
+  const container = $('grid-container');
+  container.innerHTML = '<div class="state-msg"><div class="loader"></div></div>';
+  try {
+    const allowPersonFilter = state.activePersonId && (!state.smartFilterSharedOnly || state.currentAlbumShared);
+    if (allowPersonFilter) {
+      state.assets = await searchAssetsByPersonInAlbum(state.activePersonId, state.currentAlbumId);
+      state.allAlbumAssets = [];
+    } else {
+      const album = await api('GET', `/api/albums/${state.currentAlbumId}?withoutAssets=false`);
+      state.assets = album.assets || [];
+      state.allAlbumAssets = state.assets.slice();
+    }
+    applySort(false);
+    renderGrid();
+  } catch(e) {
+    container.innerHTML = `<div class="state-msg"><div class="icon">⚠️</div><span>${esc(e.message)}</span></div>`;
+  }
+}
+
+async function searchAssetsByPersonInAlbum(personId, albumId) {
+  const items = [];
+  let page = 1;
+  while (true) {
+    const result = await api('POST', '/api/search/metadata', {
+      personIds: [personId],
+      albums: [albumId],
+      size: 1000,
+      page,
+      order: $('sort-select')?.value || 'desc',
+    });
+    const assets = (result?.assets?.items) || [];
+    items.push(...assets);
+    if (!result?.assets?.nextPage) break;
+    page = result.assets.nextPage;
+  }
+  return items;
+}
+
+function applySort(rerender=true) {
+  const dir = $('sort-select').value;
+  state.assets.sort((a, b) => {
+    const da = new Date(a.fileCreatedAt||a.createdAt||0);
+    const db = new Date(b.fileCreatedAt||b.createdAt||0);
+    return dir === 'asc' ? da - db : db - da;
+  });
+  if (rerender) renderGrid();
+}
+
+function renderGrid() {
+  const container = $('grid-container');
+  if (!state.assets.length) {
+    const noMatchText = state.activePersonId
+      ? 'No photos for this person in this folder'
+      : 'No photos in this folder';
+    container.innerHTML = `<div class="state-msg"><div class="icon">🖼️</div><span>${noMatchText}</span></div>`;
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'photo-grid';
+  for (const asset of state.assets) {
+    grid.appendChild(buildCard(asset));
+  }
+  container.innerHTML = '';
+  container.appendChild(grid);
+}
+
+function buildCard(asset) {
+  const card = document.createElement('div');
+  card.className = 'photo-card' + (state.selected.has(asset.id) ? ' selected' : '');
+  card.dataset.id = asset.id;
+  const isVideo = asset.type === 'VIDEO';
+  const filename = (asset.originalFileName || asset.originalPath?.split('/').pop() || asset.id).slice(0,30);
+  card.innerHTML = `
+    <div class="photo-check" onclick="toggleSelect('${asset.id}')"></div>
+    ${isVideo ? `<div class="photo-thumb-placeholder">🎬</div><div class="photo-type-badge">VIDEO</div>` :
+      `<img class="photo-thumb" src="${thumbUrl(asset.id)}" loading="lazy" onclick="toggleSelect('${asset.id}')" onerror="this.parentNode.querySelector('.photo-thumb-placeholder') && null; this.style.display='none'">`}
+    <div class="photo-meta">
+      <div class="photo-name" title="${esc(asset.originalFileName||asset.id)}">${esc(filename)}</div>
+      <div class="photo-actions">
+        <button class="action-btn action-move" onclick="openMoveFor('${asset.id}')">Move</button>
+        <button class="action-btn action-personal" onclick="moveToPersonal('${asset.id}')">Personal</button>
+        <button class="action-btn action-remove" onclick="trashSingle('${asset.id}')">Delete</button>
+      </div>
+    </div>`;
+  return card;
+}
+
+// ── Selection ───────────────────────────────────────────────
+function toggleSelect(id) {
+  if (state.selected.has(id)) state.selected.delete(id);
+  else state.selected.add(id);
+  const card = document.querySelector(`.photo-card[data-id="${id}"]`);
+  if (card) card.classList.toggle('selected', state.selected.has(id));
+  updateBulkBar();
+}
+
+function toggleSelectAll() {
+  if (state.selected.size === state.assets.length) {
+    clearSelection();
+  } else {
+    state.assets.forEach(a => state.selected.add(a.id));
+    document.querySelectorAll('.photo-card').forEach(c => c.classList.add('selected'));
+    updateBulkBar();
+  }
+}
+
+function clearSelection() {
+  state.selected.clear();
+  document.querySelectorAll('.photo-card').forEach(c => c.classList.remove('selected'));
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = $('bulk-bar');
+  const n = state.selected.size;
+  if (n > 0) {
+    bar.classList.add('visible');
+    $('bulk-count').textContent = `${n} selected`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+// ── Actions ────────────────────────────────────────────────
+// Single move
+function openMoveFor(id) {
+  state.pendingMoveAssets = [id];
+  openModal('move-modal');
+}
+// Bulk move
+function bulkMove() {
+  state.pendingMoveAssets = [...state.selected];
+  openModal('move-modal');
+}
+
+async function confirmMove() {
+  const targetId = $('move-target-select').value;
+  if (!targetId || !state.pendingMoveAssets.length) return;
+  closeModal('move-modal');
+  try {
+    // Add to target album
+    await api('PUT', '/api/albums/assets', { albumIds: [targetId], assetIds: state.pendingMoveAssets });
+    // Remove from current album
+    if (state.currentAlbumId) {
+      await api('DELETE', `/api/albums/${state.currentAlbumId}/assets`, { ids: state.pendingMoveAssets });
+    }
+    toast(`Moved ${state.pendingMoveAssets.length} item(s).`, 'ok');
+    clearSelection();
+    await refreshGrid();
+    await loadAlbums();
+  } catch(e) {
+    toast('Move failed: ' + e.message, 'err');
+  }
+}
+
+// Personal keep
+async function moveToPersonal(id) {
+  await ensurePersonalAlbum();
+  try {
+    await api('PUT', '/api/albums/assets', { albumIds: [state.personalAlbumId], assetIds: [id] });
+    await api('DELETE', `/api/albums/${state.currentAlbumId}/assets`, { ids: [id] });
+    toast('Moved to Personal.', 'ok');
+    await refreshGrid();
+    await loadAlbums();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function bulkPersonal() {
+  if (!state.selected.size) return;
+  await ensurePersonalAlbum();
+  const ids = [...state.selected];
+  try {
+    await api('PUT', '/api/albums/assets', { albumIds: [state.personalAlbumId], assetIds: ids });
+    await api('DELETE', `/api/albums/${state.currentAlbumId}/assets`, { ids });
+    toast(`Moved ${ids.length} item(s) to Personal.`, 'ok');
+    clearSelection();
+    await refreshGrid();
+    await loadAlbums();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function ensurePersonalAlbum() {
+  if (state.personalAlbumId) return;
+  const created = await api('POST', '/api/albums', { albumName: state.personalAlbumName });
+  state.personalAlbumId = created.id;
+  await loadAlbums();
+}
+
+// Trash / delete
+async function trashSingle(id) {
+  if (!confirm('Delete this photo? It will be moved to Immich trash.')) return;
+  try {
+    await api('DELETE', '/api/assets', { ids: [id] });
+    toast('Moved to trash.', 'ok');
+    await refreshGrid();
+    await loadAlbums();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+async function bulkTrash() {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} photo(s)? They will be moved to Immich trash.`)) return;
+  try {
+    await api('DELETE', '/api/assets', { ids });
+    toast(`${ids.length} item(s) moved to trash.`, 'ok');
+    clearSelection();
+    await refreshGrid();
+    await loadAlbums();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+// ── New album ───────────────────────────────────────────────
+function openNewAlbumModal() { $('new-album-name').value = ''; openModal('new-album-modal'); }
+async function confirmNewAlbum() {
+  const name = $('new-album-name').value.trim();
+  if (!name) return;
+  closeModal('new-album-modal');
+  try {
+    await api('POST', '/api/albums', { albumName: name });
+    toast(`Created album "${name}".`, 'ok');
+    await loadAlbums();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+// ── Modal helpers ───────────────────────────────────────────
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); }));
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── Init ────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>

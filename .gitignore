@@ -1,0 +1,15 @@
+# Secrets and local environment files
+.env
+.env.*
+mcp-gateway.env.local
+
+# Local helper artifacts
+*.local.log
+.secrets/
+backups/
+
+# Keep safe templates in git
+!.env.example
+!.env.immich-api.example
+!.env.backup-recovery.example
+!mcp-gateway.env.local.example
