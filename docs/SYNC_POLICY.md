@@ -15,6 +15,9 @@ This repository is bound to CT112 and follows a **one-way sync policy**:
    - `DRY_RUN=1 scripts/utilities/sync-from-immich-app-safe.sh`
 4. Apply only after review:
    - `DRY_RUN=0 scripts/utilities/sync-from-immich-app-safe.sh`
+5. Keep delete mode off by default:
+   - `DELETE_MISSING=0` is default and preserves repo-only files.
+   - use `DELETE_MISSING=1` only for explicit cleanup windows.
 
 ## Commit Flow (safe)
 
