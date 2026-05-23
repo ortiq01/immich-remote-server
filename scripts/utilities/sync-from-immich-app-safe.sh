@@ -25,6 +25,8 @@ RSYNC_ARGS=(
   --exclude=reports/
   --exclude=**/__pycache__/
   --exclude=*.local.log
+  --exclude=docker-compose.yml.backup
+  --exclude=.gitignore
 )
 
 if [[ "$DELETE_MISSING" == "1" ]]; then
