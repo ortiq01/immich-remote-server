@@ -7,6 +7,11 @@ mcp-gateway.env.local
 *.local.log
 .secrets/
 backups/
+reports/
+
+# Python cache
+__pycache__/
+*.pyc
 
 # Keep safe templates in git
 !.env.example
