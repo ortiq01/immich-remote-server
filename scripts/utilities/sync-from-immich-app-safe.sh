@@ -6,6 +6,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/root/immich-app}"
 REPO_DIR="${REPO_DIR:-/root/immich-remote-server}"
 DRY_RUN="${DRY_RUN:-1}"
+DELETE_MISSING="${DELETE_MISSING:-0}"
 
 if [[ ! -d "$APP_DIR" || ! -d "$REPO_DIR/.git" ]]; then
   echo "APP_DIR or REPO_DIR invalid" >&2
@@ -13,7 +14,7 @@ if [[ ! -d "$APP_DIR" || ! -d "$REPO_DIR/.git" ]]; then
 fi
 
 RSYNC_ARGS=(
-  -a --delete
+  -a
   --exclude=.git/
   --exclude=.env
   --exclude=.env.*
@@ -25,6 +26,13 @@ RSYNC_ARGS=(
   --exclude=**/__pycache__/
   --exclude=*.local.log
 )
+
+if [[ "$DELETE_MISSING" == "1" ]]; then
+  RSYNC_ARGS+=(--delete)
+  echo "[safe-sync] DELETE_MISSING=1 (repo files absent in runtime may be removed)"
+else
+  echo "[safe-sync] DELETE_MISSING=0 (repo-only files are preserved)"
+fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   RSYNC_ARGS+=(--dry-run --itemize-changes)
