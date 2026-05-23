@@ -1,157 +1,92 @@
----
-name: Immich Media Server Setup Guide
-description: "Project context for Immich media server with Docker Compose. Provides guidance on Docker services, PostgreSQL, Redis caching, and ML integration for photo/video management."
----
+# AI Agent Instructions: Immich Remote Server (CT112)
 
-# Immich Media Server - AI Agent Support
+**Version:** 1.0
+**Last Updated:** 2026-05-23
+**Last Verified:** 2026-05-23
+**Scope:** canonical
 
-You are assisting with the **Immich Media Server** project—a self-hosted photo and video management system supporting multiple media storage environments.
+## Canonical Alignment (All-Server Baseline)
 
-## Project Overview
+This repository follows the same baseline instruction model used across your servers:
 
-Immich is a distributed media management platform that:
-- Centrally hosts and manages photos and videos from multiple storage sources
-- Provides machine learning capabilities for image recognition and organization
-- Integrates with external storage systems (Nextcloud, local storage)
-- Uses Docker Compose for containerized deployment
+- Primary baseline authority: `/root/mcp-server-prox/.github/copilot-instructions.md`
+- Canonical policy reference: `/root/mcp-server-prox/ai-instructions/CANONICAL_INSTRUCTION_POLICY.md`
 
-## Architecture & Services
+Interpretation rule for this repo:
 
-### Core Services
+1. This file governs Immich repo runtime behavior.
+2. If baseline policy conflicts with local assumptions, baseline guardrails win.
+3. Immich-specific overlays in `.github/instructions/*.instructions.md` refine behavior for this repo.
 
-**immich-server** (port 2283)
-- Main application server handling API requests and user interactions
-- Image: `ghcr.io/immich-app/immich-server`
-- Depends on: Redis, PostgreSQL
-- Mounts media from `UPLOAD_LOCATION` (default: `/rpool/data/immich/library`)
-- Integrates read-only Nextcloud storage at `/shared/nextcloud-photos`
+## Big Picture
 
-**immich-machine-learning**
-- Machine learning engine for image recognition, object detection, and video analysis
-- Image: `ghcr.io/immich-app/immich-machine-learning`
-- Supports hardware acceleration: CUDA, ROCm, OpenVINO, RKNN, ARMnn
-- Model cache stored in Docker volume `model-cache`
+This repository tracks runtime-safe operations and development workflows for Immich on:
 
-### Data Layer
+- Host/container: `CT112`
+- IP: `192.168.1.109`
+- Runtime source tree: `/root/immich-app`
+- Git working tree: `/root/immich-remote-server`
 
-**PostgreSQL (Custom Immich Build)**
-- Version: 14 with VectorChord (0.3.0) and pgvectors (0.2.0) extensions
-- Purpose: Stores metadata, user accounts, and vector embeddings for ML searches
-- Data location: `DB_DATA_LOCATION` (default: `/rpool/data/immich/postgres`)
-- Credentials managed via `.env` file (`DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE_NAME`)
+Immich services are Docker Compose based and currently include:
 
-**Valkey/Redis 8**
-- In-memory caching and session management
-- Improves API performance and real-time updates
-- Health check: Redis ping probe
+- `immich-server` (`2283`)
+- `immich-machine-learning`
+- `immich_postgres`
+- `immich_redis`
 
-### Storage
+## Non-Negotiable Guardrails (Inherited Across Servers)
 
-- **Media Storage**: Configurable via `UPLOAD_LOCATION` environment variable
-- **Database Storage**: Configurable via `DB_DATA_LOCATION` (SSDs recommended; HDD support available)
-- **Model Cache**: Docker volume for ML models persistence
+1. **MCP-first mindset** when MCP capability exists; use direct CLI only when needed.
+2. **Read-first diagnostics** before any write/delete operations.
+3. **No destructive ops without explicit confirmation** (mass delete, DB wipes, forced cleanup).
+4. **Never commit secrets** (`.env*`, tokens, local env files, private keys).
+5. **Prefer small, reversible changes** with clear verification.
+6. **Use `runs-on: self-hosted`** for workflows that must access the homelab LAN.
 
-## Configuration
+## Immich-Specific Operating Rules
 
-### Environment Variables (.env)
-```
-UPLOAD_LOCATION=/rpool/data/immich/library
-DB_DATA_LOCATION=/rpool/data/immich/postgres
-IMMICH_VERSION=release  # Pin to specific version if needed (e.g., v1.71.0)
-DB_USERNAME=postgres
-DB_PASSWORD=<change-this>
-DB_DATABASE_NAME=immich
-TZ=Etc/UTC  # Optional timezone
-```
+1. Keep runtime and repo synchronized using one-way safe sync:
+   - `scripts/utilities/sync-from-immich-app-safe.sh`
+2. Default sync mode must preserve repo-only files:
+   - `DELETE_MISSING=0`
+3. Run preview before applying:
+   - `DRY_RUN=1` first, then `DRY_RUN=0` only after review.
+4. Keep duplicate handling non-destructive by default:
+   - generate candidate reports first, delete only with explicit approval.
+5. Preserve external library safety:
+   - maintain read-only external mounts where intended.
 
-### Hardware Acceleration
-ML acceleration can be enabled by uncommenting the `extends` section in the compose file and selecting:
-- `-cuda` for NVIDIA GPUs
-- `-rocm` for AMD GPUs
-- `-openvino` for Intel CPUs
-- `-rknn` for Rockchip
-- `-armnn` for ARM devices
+## Required Validation for Changes
 
-## Common Tasks
+Before closing any Immich task, verify:
 
-### When Making Changes
-- **Docker Compose updates**: Ensure `depends_on` order is preserved (server → redis/database)
-- **Volume management**: Use named volumes (`model-cache`) for data persistence; update paths in `.env`
-- **Health checks**: Both immich services have health checks enabled; keep them enabled
-- **Environment variables**: Only modify via `.env`; never hardcode secrets
+1. `docker compose ps` shows healthy/expected services.
+2. No secret files are staged (`git status --short`).
+3. If sync/ingestion logic changed, run a dry-run sync and relevant utility checks.
+4. Commit message is conventional (`feat:`, `fix:`, `docs:`, `chore:`).
 
-### Database Operations
-- PostgreSQL includes VectorChord for advanced vector search
-- pgvectors extension enables ML embedding storage and similarity search
-- Custom docker image: `ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0`
+## Instruction Overlays (Use by Scope)
 
-### Nextcloud Integration
-- Read-only mount at `/shared/nextcloud-photos`
-- Allows Immich to ingest photos from Nextcloud without duplication
-- Modify mount path in server volumes section if Nextcloud storage location changes
+- `.github/instructions/docker-compose.instructions.md`
+- `.github/instructions/environment.instructions.md`
+- `.github/instructions/immich-features.instructions.md`
+- `.github/instructions/immich-development.instructions.md`
 
-## Key Guidelines
+Use overlays when `applyTo` matches files being modified.
 
-1. **Always check official docs**: https://immich.app/docs/install/environment-variables
-2. **Version pinning**: Use specific `IMMICH_VERSION` in production to avoid unexpected changes
-3. **Database backups**: Back up PostgreSQL data regularly from `DB_DATA_LOCATION`
-4. **Storage planning**: Immich serves as centralized hub; ensure adequate storage for all media sources
-5. **Network shares**: PostgreSQL **does not support** network shares for database storage
-6. **Container restart policy**: Set to `always` for production reliability
-
-## Support & Learning Resources
-
-- **Official Documentation**: https://immich.app/docs
-- **GitHub Repository**: https://github.com/immich-app/immich
-- **Docker Compose Release**: https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml
-- **Hardware Acceleration**: https://immich.app/docs/features/ml-hardware-acceleration
-
-## Agent Capabilities for This Project
-
-When assisting with this repository, I can help with:
-- ✅ Docker Compose configuration and troubleshooting
-- ✅ Environment variable optimization and security
-- ✅ Service dependency management
-- ✅ Volume and storage configuration
-- ✅ Database schema and performance tuning
-- ✅ ML acceleration setup and hardware compatibility
-- ✅ Nextcloud integration configuration
-- ✅ Security best practices (password rotation, secrets management)
-- ✅ Health check configuration and monitoring
-- ✅ Multi-environment setup (dev, staging, production)
-
----
-
-**Last Updated**: 2026-05-14
-**Project**: Immich Media Server (Docker Compose)
-
----
-
-## Current Ops Context (2026-05)
-
-- Runtime host: CT112 (`192.168.1.109`)
-- Runtime source-of-truth path: `/root/immich-app`
-- Git working tree path: `/root/immich-remote-server`
-- Sync policy: **runtime -> repo** (see `docs/SYNC_POLICY.md`)
-
-### Important workflow state
-
-- Family timeline sharing is enabled for all configured family members.
-- Dashboard shared-person workflow is active; native non-owner `Explore/Verkennen` may still show `people=0` by design.
-- Backup source routing and family ops routines are enabled.
-- Duplicate import audit tooling exists: `scripts/utilities/audit_duplicates.py`.
-
-### Guardrails for agent changes
-
-1. Never commit secrets (`.env*`, `.secrets/`, local tokens).
-2. Prefer read-only audits before destructive actions (delete/trash/move).
-3. For duplicate cleanup, generate candidate reports first and require explicit operator confirmation before removal.
-4. Keep cron additions idempotent (remove prior tagged entries before adding new ones).
-5. When touching onboarding, preserve both API-verifiable checks and manual device checklist steps.
-
-### Useful operational commands
+## Quick Operational Commands
 
 - Onboarding snapshot: `python3 scripts/utilities/onboarding_status_report.py`
-- Review cadence check: `python3 scripts/utilities/review-cadence-check.py`
-- Event album ensure: `python3 scripts/utilities/ensure-event-albums.py`
+- Review cadence: `python3 scripts/utilities/review-cadence-check.py`
+- Event albums: `python3 scripts/utilities/ensure-event-albums.py`
 - Duplicate audit: `python3 scripts/utilities/audit_duplicates.py`
+- Safe sync preview: `DRY_RUN=1 scripts/utilities/sync-from-immich-app-safe.sh`
+
+## Completion Standard
+
+A change is complete only when:
+
+- behavior is validated,
+- no secret leakage risk exists,
+- commit is pushed,
+- and the working tree is clean.
