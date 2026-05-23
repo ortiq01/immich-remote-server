@@ -124,3 +124,34 @@ When assisting with this repository, I can help with:
 
 **Last Updated**: 2026-05-14
 **Project**: Immich Media Server (Docker Compose)
+
+---
+
+## Current Ops Context (2026-05)
+
+- Runtime host: CT112 (`192.168.1.109`)
+- Runtime source-of-truth path: `/root/immich-app`
+- Git working tree path: `/root/immich-remote-server`
+- Sync policy: **runtime -> repo** (see `docs/SYNC_POLICY.md`)
+
+### Important workflow state
+
+- Family timeline sharing is enabled for all configured family members.
+- Dashboard shared-person workflow is active; native non-owner `Explore/Verkennen` may still show `people=0` by design.
+- Backup source routing and family ops routines are enabled.
+- Duplicate import audit tooling exists: `scripts/utilities/audit_duplicates.py`.
+
+### Guardrails for agent changes
+
+1. Never commit secrets (`.env*`, `.secrets/`, local tokens).
+2. Prefer read-only audits before destructive actions (delete/trash/move).
+3. For duplicate cleanup, generate candidate reports first and require explicit operator confirmation before removal.
+4. Keep cron additions idempotent (remove prior tagged entries before adding new ones).
+5. When touching onboarding, preserve both API-verifiable checks and manual device checklist steps.
+
+### Useful operational commands
+
+- Onboarding snapshot: `python3 scripts/utilities/onboarding_status_report.py`
+- Review cadence check: `python3 scripts/utilities/review-cadence-check.py`
+- Event album ensure: `python3 scripts/utilities/ensure-event-albums.py`
+- Duplicate audit: `python3 scripts/utilities/audit_duplicates.py`

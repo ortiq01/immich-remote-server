@@ -22,6 +22,20 @@ This writes a JSON report to `reports/onboarding-status-*.json` and prints a sum
 4. Confirm first upload appears in timeline
 5. Confirm shared family albums are visible
 
+## 10-minute family checklist (quick run)
+
+Use this while everyone is present:
+
+| User | App installed | Login OK | Backup ON | First upload seen | Shared albums visible | Done |
+|---|---|---|---|---|---|---|
+| Quincy | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Martine | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Iggy | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Jip | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Viggo | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |
+
+Tip: after each user finishes, run `python3 scripts/utilities/onboarding_status_report.py` for a fresh API snapshot.
+
 ## What "Done" means
 
 For each family member:
@@ -30,6 +44,13 @@ For each family member:
 - Inbound partner timeline is fully enabled
 - Shared album visibility is healthy (>= 2)
 - Device backup tested on at least one device
+
+## Fast verification command
+
+```bash
+cd /root/immich-remote-server
+python3 scripts/utilities/onboarding_status_report.py
+```
 
 ## Notes
 
