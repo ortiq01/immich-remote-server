@@ -1,0 +1,11 @@
+# Line-ending policy. Protects Linux shell scripts from CRLF corruption when
+# edited on Windows (prevents "bad interpreter: /bin/bash^M" on Proxmox/VM hosts).
+# To fully normalize a clean repo later, add `* text=auto` and run `git add --renormalize .`.
+*.sh       text eol=lf
+*.bash     text eol=lf
+Makefile   text eol=lf
+Dockerfile text eol=lf
+
+*.ps1      text eol=crlf
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
